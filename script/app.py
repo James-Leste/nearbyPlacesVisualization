@@ -3,9 +3,17 @@ import json
 import numpy
 from math import radians, cos, sin, asin, sqrt
 
+
+
 with open("config.json") as f:
     api_key = json.load(f)["api_key"]
 
+headers = {
+    'X-Goog-Api-Key': api_key,
+    'X-Goog-FieldMask': 'places.name,places.googleMapsUri,places.displayName,places.addressComponents'
+}
+
+# calculate distance between two locations
 def distance (lat1, lat2, lon1, lon2): 
     lon1 = radians(lon1)
     lon2 = radians(lon2)
@@ -25,18 +33,27 @@ def distance (lat1, lat2, lon1, lon2):
 
 # rectangle[0] upper left
 # rectangle[1] bottom right
+# calculate the width and length of a rectangle area
 def distance_metrix(rectangle):
 
-    width = distance(rectangle[0][0], rectangle[0][0], rectangle[0][1], rectangle[1][1]) * 1000
-    length = distance(rectangle[0][0], rectangle[1][0], rectangle[1][1], rectangle[1][1]) * 1000
+    lonDistance = distance(rectangle[0][0], rectangle[0][0], rectangle[0][1], rectangle[1][1]) * 1000
+    latDistance = distance(rectangle[0][0], rectangle[1][0], rectangle[1][1], rectangle[1][1]) * 1000
 
-    return([width, length])
+    return([latDistance, lonDistance])
 
-split = 6
 
+# rectangle[0] upper left
+# rectangle[1] bottom right
 rectangle = [[60.1699, 24.9298], [60.1660, 24.9414]]
 
-radius = min(distance_metrix(rectangle))/split
+metrix = distance_metrix(rectangle)
+print(f"metrix: {metrix}")
+
+# metre
+radius = 100
+
+split_factors = [int(metrix[0]//radius), int(metrix[1]//radius)]
+print(f"split_factors: {split_factors}")
 
 area = {
     'metrix': distance_metrix(rectangle),
@@ -44,17 +61,13 @@ area = {
     'radius': radius
 }
 
-headers = {
-    'X-Goog-Api-Key': api_key,
-    'X-Goog-FieldMask': 'places.displayName'
-}
-
-def search(rectangle, type, spilt, radius):
-    for rowIndex, lat in enumerate(numpy.linspace(rectangle[1][0], rectangle[0][0], num=split)):
-        for colomnIndex, lon in enumerate(numpy.linspace(rectangle[1][1], rectangle[0][1], num=split)):
+def search(area, type, split_factors):
+    total = 0
+    for rowIndex, lat in enumerate(numpy.linspace(rectangle[1][0], rectangle[0][0], num=split_factors[0])):
+        for colomnIndex, lon in enumerate(numpy.linspace(rectangle[1][1], rectangle[0][1], num=split_factors[1])):
             data = {
                 "includedTypes": [
-                    "restaurant"
+                    type
                 ],
                 "maxResultCount": 20,
                 "locationRestriction": {
@@ -63,24 +76,25 @@ def search(rectangle, type, spilt, radius):
                             "latitude": lat,
                             "longitude": lon
                         },
-                        "radius": radius
+                        "radius": area["radius"]
                     }
                 },
                 "rankPreference": "DISTANCE"
             }
             r = requests.post('https://places.googleapis.com/v1/places:searchNearby', json=data, headers=headers)
             if("places" in r.json()):
-                print(f'{rowIndex}-{colomnIndex}: {len(r.json()["places"])}')
+                print(f'{rowIndex}-{colomnIndex}: {len(r.json()["places"])} results')
+                total += len(r.json()["places"])
             else:
-                print(f'{rowIndex}-{colomnIndex}: 0')
+                print(f'{rowIndex}-{colomnIndex}: 0 result')
 
             with open(f"./results/{rowIndex}-{colomnIndex}.json", "w") as jsonfile:
                 jsonfile.write(r.text)
+    print(total)
+    return total
 
 
-search(rectangle, "restaurant", split, radius)
-
-
+search(area, "restaurant", split_factors)
 
 
 # r = requests.post('https://places.googleapis.com/v1/places:searchNearby', json=data, headers=headers)
