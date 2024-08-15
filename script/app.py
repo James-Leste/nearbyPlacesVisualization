@@ -2,7 +2,9 @@ import requests
 import json
 import numpy
 from math import radians, cos, sin, asin, sqrt
-
+import pandas as pd
+import csv
+import argparse
 
 
 with open("config.json") as f:
@@ -44,7 +46,7 @@ def distance_metrix(rectangle):
 
 # rectangle[0] upper left
 # rectangle[1] bottom right
-rectangle = [[60.1699, 24.9298], [60.1660, 24.9414]]
+rectangle = [[61.50022232242006, 23.751871475431894], [61.491637733458134, 23.78827426438216]]
 
 metrix = distance_metrix(rectangle)
 print(f"metrix: {metrix}")
@@ -90,15 +92,64 @@ def search(area, type, split_factors):
 
             with open(f"./results/{rowIndex}-{colomnIndex}.json", "w") as jsonfile:
                 jsonfile.write(r.text)
-    print(total)
+    print(f'total raw results: {total}')
     return total
 
+# combine all the json results
+def combineJson(split_factors):
 
-search(area, "restaurant", split_factors)
+    combinedPlaces = []
+
+    for x in range(0, split_factors[0]):
+        for y in range(0, split_factors[1]):
+            data = pd.read_json(f'./results/{x}-{y}.json')
+            if('places' in data):
+                combinedPlaces.extend(data["places"])
+            else:
+                continue
+    combinedJson = {'places': combinedPlaces}
+    print(f'summary length: {len(combinedJson["places"])}')
+    return combinedJson
+
+def extract_postal_code(address_components):
+    for component in address_components:
+        if "postal_code" in component["types"]:
+            
+            return component["longText"]
+    return None
+
+def write_csv (split_factors):
+    csv_data = []
+    for idx, place in enumerate(combineJson(split_factors)['places']):
+        name = place['name']
+        display_name = place['displayName']['text']
+        postal_code = extract_postal_code(place['addressComponents'])
+        
+        google_maps_uri = place['googleMapsUri']
+        
+        csv_data.append([idx, name, display_name, postal_code, google_maps_uri])
+
+    csv_header = ['Index', 'Name', 'DisplayName', 'PostalCode', 'GoogleMapsUri']
+    with open('./results/summary.csv', 'w', newline='') as file:
+        writer = csv.writer(file)
+        writer.writerow(csv_header)
+        writer.writerows(csv_data)
+
+def clean_data():
+    csvdata = pd.read_csv('./results/summary.csv', dtype={"PostalCode": str})
+    clean_data = csvdata.drop_duplicates(subset=["Name"]).reset_index(drop=True)
+    clean_data.to_csv("./results/result.csv")
+    print(f'actual_quantity: {len(clean_data)}')
+    return len(clean_data)
 
 
-# r = requests.post('https://places.googleapis.com/v1/places:searchNearby', json=data, headers=headers)
+if __name__ == "__main__":
+    search(area, "restaurant", split_factors)
+    write_csv(split_factors)
+    clean_data()
 
-# print(r.json())
-# with open(f"./results/.json", "w") as jsonfile:
-#     jsonfile.write(r.text)
+
+
+
+
+
