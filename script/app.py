@@ -10,9 +10,11 @@ import argparse
 with open("config.json") as f:
     api_key = json.load(f)["api_key"]
 
+fieldMask = "places.name,places.nationalPhoneNumber,places.types,places.formattedAddress,places.addressComponents,places.rating,places.businessStatus,places.userRatingCount,places.dineIn,places.displayName,places.googleMapsUri"
+
 headers = {
     'X-Goog-Api-Key': api_key,
-    'X-Goog-FieldMask': 'places.name,places.googleMapsUri,places.displayName,places.addressComponents'
+    'X-Goog-FieldMask': fieldMask
 }
 
 # calculate distance between two locations
@@ -46,7 +48,8 @@ def distance_metrix(rectangle):
 
 # rectangle[0] upper left
 # rectangle[1] bottom right
-rectangle = [[61.50022232242006, 23.751871475431894], [61.491637733458134, 23.78827426438216]]
+rectangle = [[61.5002, 23.7518], [61.4916, 23.7882]]
+# rectangle = [[61.5002, 23.7818], [61.4989, 23.7882]]
 
 metrix = distance_metrix(rectangle)
 print(f"metrix: {metrix}")
@@ -118,6 +121,14 @@ def extract_postal_code(address_components):
             return component["longText"]
     return None
 
+def extract_city_name(address_components):
+    for component in address_components:
+        if "administrative_area_level_2" in component["types"]:
+            
+            return component["longText"]
+    return None
+
+
 def write_csv (split_factors):
     csv_data = []
     for idx, place in enumerate(combineJson(split_factors)['places']):
@@ -126,10 +137,16 @@ def write_csv (split_factors):
         postal_code = extract_postal_code(place['addressComponents'])
         
         google_maps_uri = place['googleMapsUri']
+        restaurant_type = place['types'] if 'types' in place else ''
+        city_name = extract_city_name(place['addressComponents'])
+        business_status = place['businessStatus'] if 'business' in place else ''
+        nationalPhoneNumber = place['nationalPhoneNumber'] if 'nationalPhoneNumber' in place else ''
+        rating = place['rating'] if 'rating' in place else ''
+        dineIn = place['dineIn'] if 'dineIn' in place else ''
         
-        csv_data.append([idx, name, display_name, postal_code, google_maps_uri])
+        csv_data.append([idx, name, display_name, restaurant_type, postal_code, city_name, business_status, nationalPhoneNumber, rating, dineIn, google_maps_uri])
 
-    csv_header = ['Index', 'Name', 'DisplayName', 'PostalCode', 'GoogleMapsUri']
+    csv_header = ['Index', 'Name', 'DisplayName', 'restaurant_type', 'PostalCode', 'city_name', 'business_status', 'nationalPhoneNumber', 'rating', 'dineIn', 'GoogleMapsUri']
     with open('./results/summary.csv', 'w', newline='') as file:
         writer = csv.writer(file)
         writer.writerow(csv_header)
