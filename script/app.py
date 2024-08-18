@@ -48,14 +48,23 @@ def distance_metrix(rectangle):
 
 # rectangle[0] upper left
 # rectangle[1] bottom right
-rectangle = [[61.5002, 23.7518], [61.4916, 23.7882]]
+
+# Tampere
+#rectangle = [[61.5744690, 23.6001560], [61.44166989, 23.9466162]]
+
+#Helsinki
+
+rectangle = [[60.3507344, 24.4351136], [60.1600212, 25.2601141]]
+
 # rectangle = [[61.5002, 23.7818], [61.4989, 23.7882]]
 
 metrix = distance_metrix(rectangle)
 print(f"metrix: {metrix}")
 
 # metre
-radius = 100
+radius = 1000
+
+city = "Helsinki"
 
 split_factors = [int(metrix[0]//radius), int(metrix[1]//radius)]
 print(f"split_factors: {split_factors}")
@@ -93,7 +102,7 @@ def search(area, type, split_factors):
             else:
                 print(f'{rowIndex}-{colomnIndex}: 0 result')
 
-            with open(f"./results/{rowIndex}-{colomnIndex}.json", "w") as jsonfile:
+            with open(f"./results/{city}/{rowIndex}-{colomnIndex}.json", "w") as jsonfile:
                 jsonfile.write(r.text)
     print(f'total raw results: {total}')
     return total
@@ -105,7 +114,7 @@ def combineJson(split_factors):
 
     for x in range(0, split_factors[0]):
         for y in range(0, split_factors[1]):
-            data = pd.read_json(f'./results/{x}-{y}.json')
+            data = pd.read_json(f'./results/{city}/{x}-{y}.json')
             if('places' in data):
                 combinedPlaces.extend(data["places"])
             else:
@@ -143,19 +152,20 @@ def write_csv (split_factors):
         nationalPhoneNumber = place['nationalPhoneNumber'] if 'nationalPhoneNumber' in place else ''
         rating = place['rating'] if 'rating' in place else ''
         dineIn = place['dineIn'] if 'dineIn' in place else ''
+        userRatingCount = place['userRatingCount'] if 'userRatingCount' in place else 0
         
-        csv_data.append([idx, name, display_name, restaurant_type, postal_code, city_name, business_status, nationalPhoneNumber, rating, dineIn, google_maps_uri])
+        csv_data.append([idx, name, display_name, restaurant_type, postal_code, city_name, business_status, nationalPhoneNumber, rating, userRatingCount, dineIn, google_maps_uri])
 
-    csv_header = ['Index', 'Name', 'DisplayName', 'restaurant_type', 'PostalCode', 'city_name', 'business_status', 'nationalPhoneNumber', 'rating', 'dineIn', 'GoogleMapsUri']
-    with open('./results/summary.csv', 'w', newline='') as file:
+    csv_header = ['Index', 'Name', 'DisplayName', 'restaurant_type', 'PostalCode', 'city_name', 'business_status', 'nationalPhoneNumber', 'rating', 'userRatingCount', 'dineIn', 'GoogleMapsUri']
+    with open(f'./results/{city}/summary.csv', 'w', newline='') as file:
         writer = csv.writer(file)
         writer.writerow(csv_header)
         writer.writerows(csv_data)
 
 def clean_data():
-    csvdata = pd.read_csv('./results/summary.csv', dtype={"PostalCode": str})
+    csvdata = pd.read_csv(f'./results/{city}/summary.csv', dtype={"PostalCode": str})
     clean_data = csvdata.drop_duplicates(subset=["Name"]).reset_index(drop=True)
-    clean_data.to_csv("./results/result.csv")
+    clean_data.to_csv(f"./results/{city}/result.csv")
     print(f'actual_quantity: {len(clean_data)}')
     return len(clean_data)
 
@@ -164,6 +174,11 @@ if __name__ == "__main__":
     search(area, "restaurant", split_factors)
     write_csv(split_factors)
     clean_data()
+
+    # print(numpy.linspace(rectangle[1][0], rectangle[0][0], num=split_factors[0]))
+    # print(numpy.linspace(rectangle[1][1], rectangle[0][1], num=split_factors[1]))
+    # for rowIndex, lat in enumerate(numpy.linspace(rectangle[1][0], rectangle[0][0], num=split_factors[0])):
+    #     for colomnIndex, lon in enumerate(numpy.linspace(rectangle[1][1], rectangle[0][1], num=split_factors[1])):
 
 
 

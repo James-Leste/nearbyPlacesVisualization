@@ -1,5 +1,6 @@
 *.json
 .DS_Store
 results/*.json
+results/*/*
 test.*
 summary.csv
